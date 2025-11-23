@@ -1,0 +1,9 @@
+{
+  "name": "Event Planner HG Pro Max 2.0",
+  "description": "A premium, multi-modal AI suite powered by Gemini 2.5 and 3.0 models. Features include real-time voice conversation, cinematic video generation, professional image synthesis, and map-grounded intelligence.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation",
+    "camera"
+  ]
+}
