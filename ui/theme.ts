@@ -1,43 +1,24 @@
 export const HGTheme = {
   colors: {
-    vino: "#5A0F1B",
-    vinoGlow: "rgba(90, 15, 27, 0.55)",
-    dorado: "#C9A227",
-    doradoGlow: "rgba(201, 162, 39, 0.45)",
-    negro: "#0A0A0A",
-    plata: "#D0D2D3",
-    fondoGlass: "rgba(15, 15, 15, 0.35)",
+    primary: "#5A0F1B",
+    secondary: "#3D0610",
+    gold: "#D4AF37",
+    goldGlow: "rgba(212, 175, 55, 0.4)",
+    dark: "#050505",
+    panel: "rgba(12, 12, 12, 0.9)",
+    text: "#FFFFFF",
+    textDim: "#A0A0A0",
+    neonBlue: "#00f3ff",
     neonGreen: "#22c55e",
-    neonPurple: "#a855f7",
-    neonOrange: "#f97316",
-    neonPink: "#db2777"
+    neonPurple: "#a855f7"
   },
-
-  radius: {
-    normal: "14px",
-    pill: "22px"
+  effects: {
+    glass: "backdrop-blur-2xl bg-[#0a0a0a]/90 border border-white/10",
+    neonGlow: "0 0 20px rgba(212, 175, 55, 0.25)",
+    shadowLg: "0 20px 60px rgba(0,0,0,0.7)"
   },
-
-  shadow: {
-    premium:
-      "0 0 25px rgba(201,162,39,0.25), 0 0 45px rgba(90,15,27,0.35)",
-    soft:
-      "0 8px 30px rgba(0,0,0,0.25)"
-  },
-
-  button: {
-    base: `
-      border-radius: 14px;
-      padding: 12px 20px;
-      font-weight: 600;
-      letter-spacing: .5px;
-      color: #FFF;
-      transition: 0.25s ease;
-      backdrop-filter: blur(12px);
-      pointer-events: auto;
-      cursor: pointer;
-    `,
-    
-    // ... existing styles if any ...
+  layout: {
+    radius: "14px",
+    headerHeight: "70px"
   }
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
-import { Send, MapPin, Globe, Loader2 } from 'lucide-react';
+import { Send, MapPin, Globe, Loader2, AlertCircle } from 'lucide-react';
 import { ChatMessage } from '../types';
 
 const AtlasMaps: React.FC = () => {
@@ -8,6 +8,7 @@ const AtlasMaps: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,9 +19,21 @@ const AtlasMaps: React.FC = () => {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           });
+          setLocationError(null);
         },
-        (error) => console.error("Error getting location", error)
+        (error) => {
+            // Handle specific error codes for better UX
+            if (error.code === 1) { // PERMISSION_DENIED
+                console.warn("Geolocation permission denied by user.");
+                setLocationError("Permission Denied");
+            } else {
+                console.warn("Error getting location:", error.message);
+                setLocationError(error.message);
+            }
+        }
       );
+    } else {
+        setLocationError("Geolocation not supported");
     }
     // Initial greeting
     setMessages([{
@@ -117,6 +130,11 @@ const AtlasMaps: React.FC = () => {
            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/20 border border-emerald-500/30 text-emerald-400 text-xs">
              <MapPin size={12} />
              <span>Location Active</span>
+           </div>
+        ) : locationError ? (
+           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-900/20 border border-red-500/30 text-red-400 text-xs" title={locationError}>
+             <AlertCircle size={12} />
+             <span>{locationError}</span>
            </div>
         ) : (
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-900/20 border border-amber-500/30 text-amber-400 text-xs">

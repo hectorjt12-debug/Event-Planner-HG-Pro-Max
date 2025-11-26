@@ -25,46 +25,12 @@ export default function MapEditor() {
   const clearHall = usePlannerStore((s) => s.clearHall);
   const removeArea = usePlannerStore((s) => s.removeArea);
   const selectedId = usePlannerStore((s) => s.selectedId);
-  const setSelected = usePlannerStore((s) => s.setSelected);
   const setSelectedId = usePlannerStore((s) => s.setSelectedId);
   const reset = usePlannerStore((s) => s.reset);
   
   const { mode, setMode } = useInteractiveStore();
   const { generatedItems } = useHGCreatorStore();
-  const prevGeneratedCount = useRef(0);
-
-  useEffect(() => {
-    if (generatedItems.length > prevGeneratedCount.current) {
-        const newItem = generatedItems[generatedItems.length - 1];
-        let w = 100, h = 100, cat = 'mueble', type = 'mueble';
-        
-        if (newItem.category === 'table') { 
-            w = 150; h = 150; cat = 'mesas'; type = 'table';
-            if (newItem.shape === 'rectangular') { w = 240; h = 100; }
-        } else if (newItem.category === 'chair') {
-            w = 50; h = 50; cat = 'sillas'; type = 'chair';
-        } else if (newItem.category === 'lounge') {
-            w = 200; h = 100; cat = 'mueble'; type = 'lounge';
-        }
-
-        addItem({
-            id: newItem.id || nanoid(),
-            name: newItem.label || newItem.category,
-            w: w,
-            h: h,
-            size: Math.max(w, h),
-            x: 2500 + (Math.random() * 200 - 100), 
-            y: 2500 + (Math.random() * 200 - 100),
-            rotation: 0,
-            type: type,
-            category: cat,
-            color: newItem.color || (cat === 'mesas' ? '#333' : '#fff'),
-            locked: false
-        });
-        prevGeneratedCount.current = generatedItems.length;
-    }
-  }, [generatedItems, addItem]);
-
+  
   const [aiText, setAiText] = useState("");
   const [is3D, setIs3D] = useState(false);
   const [showAreaCreator, setShowAreaCreator] = useState(false);
@@ -79,7 +45,7 @@ export default function MapEditor() {
   const lastMouseRef = useRef({ x: 0, y: 0 });
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
-  // Controlled Inputs State
+  // Inputs
   const [width, setWidth] = useState<number | "">(30);
   const [length, setLength] = useState<number | "">(28);
   const [height, setHeight] = useState<number | "">(6);
@@ -87,12 +53,9 @@ export default function MapEditor() {
   // --- ZOOM & PAN LOGIC ---
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    
     if (e.ctrlKey || e.metaKey) {
-         // PAN
          setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
     } else {
-         // ZOOM
          const direction = e.deltaY > 0 ? -1 : 1;
          const newScale = clamp(scale + direction * 0.05, 0.3, 4);
          setScale(newScale);
@@ -112,14 +75,15 @@ export default function MapEditor() {
   const zoomIn = () => setScale(s => clamp(s + 0.2, 0.3, 4));
   const zoomOut = () => setScale(s => clamp(s - 0.2, 0.3, 4));
 
-  // --- PANNING (Drag Mode) ---
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
+      // Only drag if clicking background
+      if((e.target as HTMLElement).closest('.hg-btn') || (e.target as HTMLElement).closest('.hg-input')) return;
+
       const targetId = (e.target as HTMLElement).id;
-      
       if (targetId === "plano-fondo" || targetId === "canvas-wrapper" || targetId.includes("grid")) {
           setIsDraggingCanvas(true);
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          setSelected(null); 
+          setSelectedId(null); 
       }
   };
 
@@ -134,22 +98,7 @@ export default function MapEditor() {
 
   const handleCanvasMouseUp = () => setIsDraggingCanvas(false);
 
-  // --- AI COMMANDS ---
-  function micCommand() {
-      if (typeof window !== 'undefined' && window.webkitSpeechRecognition) {
-      const r = new window.webkitSpeechRecognition();
-      r.lang = "es-MX";
-      r.onresult = async (e: any) => {
-          const text = e.results[0][0].transcript;
-          setAiText(text);
-          await executeAI(text);
-      };
-      r.start();
-    } else {
-      alert("Speech recognition not supported.");
-    }
-  }
-
+  // AI
   async function executeAI(cmd?: string) {
     const text = cmd || aiText;
     if (!text) return;
@@ -158,71 +107,45 @@ export default function MapEditor() {
     setTimeout(() => setAiText(""), 4000);
   }
 
-  // FIXED: Generate Hall Logic (Clean previous areas first)
   const generateHall = () => {
     if (!width || !length) return;
-    
-    // Remove existing salon/hall items or areas
-    areas.forEach(a => {
-        if (a.type === 'salon' || a.name === 'Gran Salón') removeArea(a.id);
-    });
-
-    // Clear items classified as hall
+    areas.forEach(a => { if (a.type === 'salon') removeArea(a.id); });
     clearHall();
-    
-    const wVal = Number(width);
-    const hVal = Number(length);
-
-    // Add as Area (Bottom Layer)
     addArea({
         id: nanoid(),
         name: "Gran Salón",
-        width: wVal,
-        height: hVal,
+        width: Number(width),
+        height: Number(length),
         x: 2500,
-        y: 2500, // Centered
+        y: 2500,
         type: "salon",
         color: "#1e293b"
     });
   };
 
-   const handleMove = (id: string, newPos: {x: number, y: number}) => {
-     updateItem(id, newPos);
-  };
-
-  const handleMoveArea = (id: string, newPos: {x: number, y: number}) => {
-      updateArea(id, newPos);
-  };
-
   return (
-    <div className="w-full h-full flex flex-col bg-[#050505] overflow-hidden font-sans text-white">
+    <div className="w-full h-full flex flex-col bg-[#050505] overflow-hidden font-sans text-white relative">
       
-      <HGSpaceTopBar 
-        aiText={aiText}
-        setAiText={setAiText}
-        onMic={micCommand}
-        onExecute={() => executeAI()}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onReset={reset}
-        onToggle3D={() => setIs3D(!is3D)}
-        is3D={is3D}
-        onToggleCatalog={() => setShowCatalog(!showCatalog)}
-        onToggleRules={() => setShowRules(!showRules)}
-        width={width}
-        setWidth={setWidth}
-        length={length}
-        setLength={setLength}
-        height={height}
-        setHeight={setHeight}
-        onGenerateSalon={generateHall}
-        onToggleNightMode={() => setIsNightMode(!isNightMode)}
-        isNightMode={isNightMode}
-      />
+      {/* 1. TOP BAR (UI LAYER - Z-INDEX HIGH) */}
+      <div className="relative z-[100] pointer-events-auto">
+        <HGSpaceTopBar 
+            aiText={aiText} setAiText={setAiText}
+            onMic={() => {}} onExecute={() => executeAI()}
+            onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={reset}
+            onToggle3D={() => setIs3D(!is3D)} is3D={is3D}
+            onToggleCatalog={() => setShowCatalog(!showCatalog)}
+            onToggleRules={() => setShowRules(!showRules)}
+            width={width} setWidth={setWidth}
+            length={length} setLength={setLength}
+            height={height} setHeight={setHeight}
+            onGenerateSalon={generateHall}
+            onToggleNightMode={() => setIsNightMode(!isNightMode)}
+            isNightMode={isNightMode}
+        />
+      </div>
 
-      <div className="flex-1 relative overflow-hidden flex">
-        
-        {/* Infinite Canvas Wrapper */}
+      {/* 2. CANVAS AREA (LOWER LAYER) */}
+      <div className="flex-1 relative overflow-hidden flex z-0">
         <div 
             className={`flex-1 h-full relative bg-[#0a0a0a] overflow-hidden ${isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab'}`}
             id="canvas-wrapper"
@@ -231,9 +154,10 @@ export default function MapEditor() {
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
             onMouseLeave={handleCanvasMouseUp}
+            style={{ zIndex: 0 }} 
         >
              <div 
-                className="absolute transition-transform duration-100 ease-linear will-change-transform"
+                className="absolute will-change-transform"
                 style={{
                     width: '5000px',
                     height: '5000px',
@@ -244,7 +168,7 @@ export default function MapEditor() {
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale}) ${is3D ? 'perspective(2000px) rotateX(35deg) translateY(-100px)' : ''}`,
                     transformOrigin: "center center",
                     transformStyle: 'preserve-3d',
-                    pointerEvents: 'none'
+                    pointerEvents: 'none' /* Important: Let clicks pass through wrapper to items */
                 }}
              >
                 <NexusCanvas
@@ -252,11 +176,9 @@ export default function MapEditor() {
                     areas={areas}
                     guests={guests}
                     selected={selectedId}
-                    onSelect={(id) => {
-                        setSelectedId(id);
-                    }}
-                    onMove={handleMove}
-                    onMoveArea={handleMoveArea}
+                    onSelect={setSelectedId}
+                    onMove={(id, p) => updateItem(id, p)}
+                    onMoveArea={(id, p) => updateArea(id, p)}
                     scale={scale}
                     is3D={is3D}
                     showGrid={showRules}
@@ -265,19 +187,17 @@ export default function MapEditor() {
              </div>
         </div>
 
-        {/* Panels */}
+        {/* 3. OVERLAYS (Z-INDEX HIGH) */}
+        {showCatalog && <CatalogPanel />}
+        <PropertiesPanel />
+        <HGCreatorButton />
+        
         {showAreaCreator && (
-          <div className="absolute top-6 left-6 z-[150] animate-in fade-in zoom-in duration-200 hg-interactive">
+          <div className="absolute top-6 left-6 z-[200]">
              <AreaCreator onClose={() => setShowAreaCreator(false)} />
           </div>
         )}
-        
-        <HGCreatorButton />
       </div>
-
-      {showCatalog && <CatalogPanel />}
-      <PropertiesPanel />
-      
     </div>
   );
 }

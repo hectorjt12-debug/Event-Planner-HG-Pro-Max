@@ -6,38 +6,31 @@ export interface PlannerItem {
   x: number;
   y: number;
   name: string;
-  size: number;
   w: number;
   h: number;
+  size: number;
   rotation: number;
-  category?: string;
-  type?: string;
-  color?: string;
-  capacity?: number;
-  locked?: boolean;
+  category: string; // 'mesas' | 'sillas' | 'pistas' | 'escenarios' | 'decor' | ...
+  type: string;     // 'round10', 'rect', 'chair', etc.
+  color: string;
+  locked: boolean;
   groupId?: string;
+  tier?: string;    // 'standard' | 'premium' | 'ultra' | 'ai-generated'
   [key: string]: any;
 }
 
 export interface Area {
   id: string;
   name: string;
-  width: number;
-  height: number;
-  x: number;
+  width: number;  // en metros
+  height: number; // en metros
+  x: number;      // coordenadas locales (generalmente 2500 center)
   y: number;
-  type: 
-    | "salon"
-    | "carpa"
-    | "cocina"
-    | "terraza"
-    | "extra"
-    | "hall"
-    | "lounge";
+  rotation: number;
+  type: "salon" | "carpa" | "cocina" | "terraza" | "extra" | "hall" | "lounge";
   color: string;
-  rotation?: number;
-  terrazaType?: "abierta" | "techada" | "semi-techada";
-  uso?: "coctel" | "recepcion" | "vip" | "lounge" | "fumadores" | "extra";
+  terrazaType?: string;
+  uso?: string;
   conectaCon?: string[];
 }
 
@@ -46,45 +39,39 @@ export interface Guest {
   x: number;
   y: number;
   color: string;
-}
-
-interface LayerState {
-  tables: boolean;
-  chairs: boolean;
-  decor: boolean;
-  areas: boolean;
-  guests: boolean;
-  [key: string]: boolean;
+  tableId?: string;
 }
 
 interface PlannerState {
+  // State
   items: PlannerItem[];
   areas: Area[];
   guests: Guest[];
-  selected: PlannerItem | null;
   selectedId: string | null;
+  selected: PlannerItem | null;
+  layers: { [key: string]: boolean };
+  
+  // Simulation State
+  simulationRunning: boolean;
+  themeMode: 'blueprint' | 'luxury' | 'cyberpunk' | 'watercolor';
 
-  layers: LayerState;
-
-  addItem: (item: PlannerItem) => void;
+  // Actions
+  addItem: (item: Partial<PlannerItem>) => void;
   updateItem: (id: string, partial: Partial<PlannerItem>) => void;
   removeItem: (id: string) => void;
-
   setAll: (items: PlannerItem[]) => void;
-  setSelected: (item: PlannerItem | null) => void;
-  setSelectedId: (id: string | null) => void;
-
-  reset: () => void;
-  setLayer: (layer: string, visible: boolean) => void;
-
-  addArea: (area: Area) => void;
-  updateArea: (id: string, data: Partial<Area>) => void;
+  
+  addArea: (area: Partial<Area>) => void;
+  updateArea: (id: string, partial: Partial<Area>) => void;
   removeArea: (id: string) => void;
-
   clearHall: () => void;
 
-  setGuests: (guests: Guest[]) => void;
-  clearGuests: () => void;
+  setSelectedId: (id: string | null) => void;
+  reset: () => void;
+  setLayer: (layer: string, visible: boolean) => void;
+  
+  toggleSimulation: () => void;
+  setThemeMode: (mode: 'blueprint' | 'luxury' | 'cyberpunk' | 'watercolor') => void;
 }
 
 export const usePlannerStore = create<PlannerState>((set, get) => ({
@@ -93,110 +80,101 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   guests: [],
   selectedId: null,
   selected: null,
+  layers: { tables: true, chairs: true, decor: true, areas: true, guests: true },
+  simulationRunning: false,
+  themeMode: 'luxury',
 
-  layers: {
-    tables: true,
-    chairs: true,
-    decor: true,
-    areas: true,
-    guests: true,
+  addItem: (item) => {
+    const newItem: PlannerItem = {
+      id: item.id || nanoid(),
+      x: item.x ?? 2500,
+      y: item.y ?? 2500,
+      name: item.name || "Nuevo Item",
+      w: item.w || 100,
+      h: item.h || 100,
+      size: item.size || Math.max(item.w || 0, item.h || 0, 100),
+      rotation: item.rotation || 0,
+      category: item.category || "mueble",
+      type: item.type || "generic",
+      color: item.color || "#ffffff",
+      locked: item.locked || false,
+      tier: item.tier || "standard",
+      ...item
+    };
+    set((state) => ({ items: [...state.items, newItem] }));
   },
 
-  addItem: (item) =>
-    set((state) => ({
-      items: [...state.items, { ...item, locked: item.locked ?? false }],
-    })),
-
-  updateItem: (id, partial) =>
+  updateItem: (id, partial) => {
     set((state) => {
-      const index = state.items.findIndex((i) => i.id === id);
-      if (index === -1) return state;
+      const idx = state.items.findIndex(i => i.id === id);
+      if (idx === -1) return state;
 
-      const original = state.items[index];
-      const updated = { ...original, ...partial };
+      const updatedItems = [...state.items];
+      updatedItems[idx] = { ...updatedItems[idx], ...partial };
+      
+      // Sync selection if needed
+      const updatedSelected = state.selectedId === id ? updatedItems[idx] : state.selected;
 
-      // Auto-ajustar tamaño si solo cambia size
-      if (partial.size && !partial.w && !partial.h) {
-        updated.w = partial.size;
-        updated.h = partial.size;
-      }
-
-      const newItems = [...state.items];
-      newItems[index] = updated;
-
-      return {
-        items: newItems,
-        selected: state.selectedId === id ? updated : state.selected,
-      };
-    }),
-
-  removeItem: (id) =>
-    set((state) => ({
-      items: state.items.filter((i) => i.id !== id),
-      selectedId: state.selectedId === id ? null : state.selectedId,
-      selected: state.selectedId === id ? null : state.selected,
-    })),
-
-  setAll: (items) => set({ items }),
-
-  setSelected: (item) =>
-    set({ selected: item, selectedId: item?.id ?? null }),
-
-  setSelectedId: (id) => {
-    if (!id) return set({ selected: null, selectedId: null });
-
-    const found = get().items.find((i) => i.id === id);
-
-    set({
-      selected: found ?? null,
-      selectedId: found?.id ?? null,
+      return { items: updatedItems, selected: updatedSelected };
     });
   },
 
-  reset: () =>
-    set({
-      items: [],
-      areas: [],
-      guests: [],
-      selected: null,
-      selectedId: null,
-    }),
-
-  setLayer: (layer, visible) =>
+  removeItem: (id) => {
     set((state) => ({
-      layers: { ...state.layers, [layer]: visible },
-    })),
+      items: state.items.filter(i => i.id !== id),
+      selectedId: state.selectedId === id ? null : state.selectedId,
+      selected: state.selectedId === id ? null : state.selected
+    }));
+  },
 
-  addArea: (area) =>
-    set((s) => ({
-      areas: [
-        ...s.areas,
-        {
-          ...area,
-          id: area.id ?? nanoid(),
-          rotation: area.rotation ?? 0,
-          conectaCon: area.conectaCon ?? [],
-        },
-      ],
-    })),
+  setAll: (items) => set({ items }),
 
-  updateArea: (id, data) =>
-    set((s) => ({
-      areas: s.areas.map((a) =>
-        a.id === id ? { ...a, ...data } : a
-      ),
-    })),
+  addArea: (area) => {
+    const newArea: Area = {
+      id: area.id || nanoid(),
+      name: area.name || "Nueva Área",
+      width: area.width || 10,
+      height: area.height || 10,
+      x: area.x ?? 2500,
+      y: area.y ?? 2500,
+      rotation: area.rotation || 0,
+      type: area.type || "extra",
+      color: area.color || "#888888",
+      ...area
+    };
+    set((state) => ({ areas: [...state.areas, newArea] }));
+  },
 
-  removeArea: (id) =>
-    set((s) => ({
-      areas: s.areas.filter((a) => a.id !== id),
-    })),
+  updateArea: (id, partial) => {
+    set((state) => ({
+      areas: state.areas.map(a => a.id === id ? { ...a, ...partial } : a)
+    }));
+  },
 
-  clearHall: () =>
-    set((s) => ({
-      areas: s.areas.filter((a) => a.type !== "hall"),
-    })),
+  removeArea: (id) => {
+    set((state) => ({ areas: state.areas.filter(a => a.id !== id) }));
+  },
 
-  setGuests: (guests) => set({ guests }),
-  clearGuests: () => set({ guests: [] }),
+  clearHall: () => {
+    set((state) => ({ areas: state.areas.filter(a => a.type !== 'salon') }));
+  },
+
+  setSelectedId: (id) => {
+    if (!id) {
+      set({ selectedId: null, selected: null });
+      return;
+    }
+    const found = get().items.find(i => i.id === id) || null;
+    set({ selectedId: id, selected: found });
+  },
+
+  reset: () => set({ items: [], areas: [], guests: [], selectedId: null, selected: null }),
+
+  setLayer: (layer, visible) => {
+    set((state) => ({ layers: { ...state.layers, [layer]: visible } }));
+  },
+  
+  toggleSimulation: () => set(s => ({ simulationRunning: !s.simulationRunning })),
+  
+  setThemeMode: (mode) => set({ themeMode: mode })
 }));

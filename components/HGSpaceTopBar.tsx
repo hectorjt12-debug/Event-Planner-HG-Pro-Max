@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, Play, ZoomIn, ZoomOut, RotateCcw, Box, Move, RotateCw, Copy, Lock, Ungroup, Monitor, Maximize, Tent, Utensils, Armchair, Sun, Square, Users, Lightbulb } from 'lucide-react';
+import { Mic, Play, ZoomIn, ZoomOut, RotateCcw, Box, Move, RotateCw, Copy, Lock, Ungroup, Monitor, Maximize, Tent, Utensils, Armchair, Sun, Square, Users, Lightbulb, Sparkles, Map as MapIcon, Moon } from 'lucide-react';
 import { useInteractiveStore } from '../store/useInteractiveStore';
 import { usePlannerStore, Guest } from '../store/usePlannerStore';
 import { nanoid } from 'nanoid';
@@ -41,182 +41,120 @@ export default function HGSpaceTopBar({
   const { addArea, setGuests, items, guests } = usePlannerStore();
 
   const handleAddArea = (type: "carpa" | "terraza" | "cocina" | "lounge") => {
-    let w = 6;
-    let h = 6;
-    let color = '#64748b';
-    
-    if (type === 'carpa') { w = 12; h = 15; color = '#22c55e'; }
-    if (type === 'terraza') { w = 15; h = 8; color = '#a855f7'; }
-    if (type === 'cocina') { w = 8; h = 6; color = '#f97316'; }
-    if (type === 'lounge') { w = 10; h = 10; color = '#db2777'; }
-
-    const wVal = w; // meters
-    const hVal = h; // meters
+    const configs = {
+      carpa: { w: 12, h: 15, color: '#22c55e' },
+      terraza: { w: 15, h: 8, color: '#a855f7' },
+      cocina: { w: 8, h: 6, color: '#f97316' },
+      lounge: { w: 10, h: 10, color: '#db2777' }
+    };
+    const cfg = configs[type];
 
     addArea({
       id: nanoid(),
       name: type.toUpperCase(),
       type: type as any,
-      width: wVal,
-      height: hVal,
-      x: 2500, 
-      y: 2500,
+      width: cfg.w,
+      height: cfg.h,
+      x: 2500 + Math.random() * 100, 
+      y: 2500 + Math.random() * 100,
       rotation: 0,
-      color: color
+      color: cfg.color
     });
   };
 
-  const simulateCrowd = () => {
-      if (guests.length > 0) {
-          setGuests([]); // Toggle off
-          return;
-      }
-
-      const newGuests: Guest[] = [];
-      
-      items.forEach(item => {
-          if (item.category === 'sillas' || item.type === 'chair') {
-              newGuests.push({
-                  id: nanoid(),
-                  x: item.x,
-                  y: item.y,
-                  color: '#ffffff'
-              });
-          }
-          if (item.category === 'pistas' || item.type === 'dance') {
-              const count = Math.floor((item.w * item.h) / 4000); 
-              for(let i=0; i<count; i++) {
-                  newGuests.push({
-                      id: nanoid(),
-                      x: item.x + (Math.random() * item.w - item.w/2),
-                      y: item.y + (Math.random() * item.h - item.h/2),
-                      color: Math.random() > 0.5 ? '#D4AF37' : '#ffffff'
-                  });
-              }
-          }
-      });
-
-      setGuests(newGuests);
-  };
-
   return (
-    <div className="flex flex-col w-full bg-[#050505] border-b border-white/10 z-[9999] relative shadow-2xl pb-1 select-none pointer-events-auto">
+    <div className="relative w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/10 z-[2000] shadow-2xl pointer-events-auto h-auto flex flex-col">
       
-      {/* ROW 1: AI & GLOBAL TOOLS */}
-      <div className="relative flex items-center justify-between px-6 py-4 bg-black/90 backdrop-blur-md border-b border-white/5 h-20 pointer-events-auto">
+      {/* UPPER DECK: AI & Main Controls */}
+      <div className="flex flex-wrap items-center justify-between px-6 py-3 border-b border-white/5 gap-4">
         
-        {/* LEFT: INTERACTION TOOLS */}
-        <div className="flex items-center gap-2 pointer-events-auto relative z-50">
-           <div className="flex bg-gray-900/50 rounded-xl p-1 gap-1 border border-white/10 pointer-events-auto">
-              <button onClick={() => setMode('move')} className={`hg-btn neon ${mode === 'move' ? 'active' : ''}`} title="Mover"><Move size={18}/></button>
-              <button onClick={() => setMode('rotate')} className={`hg-btn neon ${mode === 'rotate' ? 'active' : ''}`} title="Rotar"><RotateCw size={18}/></button>
-              <button onClick={() => setMode('duplicate')} className={`hg-btn neon ${mode === 'duplicate' ? 'active' : ''}`} title="Duplicar"><Copy size={18}/></button>
-              <button onClick={() => setMode('lock')} className={`hg-btn neon ${mode === 'lock' ? 'active' : ''}`} title="Bloquear"><Lock size={18}/></button>
-              <button onClick={() => setMode('group')} className={`hg-btn neon ${mode === 'group' ? 'active' : ''}`} title="Agrupar"><Ungroup size={18}/></button>
-           </div>
+        {/* Interaction Modes */}
+        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+           {['move', 'rotate', 'duplicate', 'lock'].map(m => (
+             <button 
+               key={m}
+               onClick={() => setMode(m as any)} 
+               className={`hg-btn neon p-2 rounded-lg ${mode === m ? 'border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10' : 'text-gray-400'}`}
+               title={m.toUpperCase()}
+             >
+               {m === 'move' && <Move size={16}/>}
+               {m === 'rotate' && <RotateCw size={16}/>}
+               {m === 'duplicate' && <Copy size={16}/>}
+               {m === 'lock' && <Lock size={16}/>}
+             </button>
+           ))}
         </div>
 
-        {/* CENTER: AI COMMAND CABIN */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-3 z-50 pointer-events-auto">
-          <button onClick={onMic} className="hg-btn primary shadow-lg" title="Comando de Voz">
+        {/* AI Command Center */}
+        <div className="flex-1 max-w-2xl flex items-center gap-2 mx-auto">
+          <button onClick={onMic} className="hg-btn primary p-3 rounded-xl animate-pulse hover:animate-none shadow-lg shadow-red-900/20">
              <Mic size={20} />
           </button>
-          <div className="relative pointer-events-auto">
-            <input 
-                value={aiText}
-                onChange={(e) => setAiText(e.target.value)}
-                placeholder="Instrucciones IA (ej. Agrega 10 mesas)..." 
-                onKeyDown={(e) => e.key === 'Enter' && onExecute()}
-                className="hg-input w-96 shadow-inner pointer-events-auto"
-            />
-            <button onClick={onExecute} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#C9A227] hover:text-white transition-colors pointer-events-auto cursor-pointer">
-                <Play size={16} fill="currentColor" />
-            </button>
-          </div>
+          <input 
+            value={aiText}
+            onChange={(e) => setAiText(e.target.value)}
+            placeholder="Describe your event (e.g., 'Wedding setup for 200 pax with gold chairs')"
+            className="flex-1 hg-input bg-black/60 border-white/10 text-white placeholder-gray-500 text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && onExecute()}
+          />
+          <button onClick={onExecute} className="hg-btn neon p-3 rounded-xl text-[#D4AF37]">
+             <Sparkles size={20} />
+          </button>
         </div>
 
-        {/* RIGHT: VIEW CONTROLS */}
-        <div className="flex items-center gap-3 pointer-events-auto relative z-50">
-           <button onClick={onToggle3D} className={`hg-btn ${is3D ? 'primary' : 'neon'}`}>
-             <Box size={20} /> <span className="text-xs">{is3D ? "3D ON" : "2D"}</span>
+        {/* View Controls */}
+        <div className="flex items-center gap-2">
+           <button onClick={onToggle3D} className={`hg-btn neon p-2 ${is3D ? 'text-[#D4AF37] border-[#D4AF37]' : ''}`} title="3D View">
+              <Box size={18} />
            </button>
-           <div className="flex bg-gray-900 rounded-xl border border-gray-700 overflow-hidden pointer-events-auto">
-             <button onClick={onZoomOut} className="p-3 hover:bg-gray-800 border-r border-gray-700 transition-colors text-gray-400 hover:text-white hg-btn"><ZoomOut size={20} /></button>
-             <button onClick={onZoomIn} className="p-3 hover:bg-gray-800 transition-colors text-gray-400 hover:text-white hg-btn"><ZoomIn size={20} /></button>
-           </div>
-           <button onClick={onReset} className="p-3 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl border border-transparent hover:border-red-900/50 transition-all hg-btn"><RotateCcw size={20} /></button>
+           <button onClick={onToggleNightMode} className={`hg-btn neon p-2 ${isNightMode ? 'text-blue-400' : ''}`} title="Night Mode">
+              {isNightMode ? <Moon size={18} /> : <Sun size={18} />}
+           </button>
+           <div className="w-px h-6 bg-white/10 mx-1" />
+           <button onClick={onZoomOut} className="hg-btn neon p-2"><ZoomOut size={18} /></button>
+           <button onClick={onZoomIn} className="hg-btn neon p-2"><ZoomIn size={18} /></button>
         </div>
       </div>
 
-      {/* ROW 2: GENERATOR & QUICK ACTIONS */}
-      <div className="flex items-center justify-between px-6 py-3 bg-[#0a0a0a] pointer-events-auto relative z-40">
+      {/* LOWER DECK: Quick Areas & Salon Config */}
+      <div className="flex flex-wrap items-center justify-between px-6 py-2 bg-black/60 gap-4 text-sm">
         
-        {/* GENERAR SALON FIX */}
-        <div className="flex items-center justify-center gap-4 py-2 px-6 bg-black/40 backdrop-blur-xl rounded-2xl border border-[#C9A227]/30 hover:border-[#C9A227]/60 transition-colors group pointer-events-auto">
-          
-          <div className="flex flex-col text-[#C9A227] pointer-events-auto">
-            <label className="text-[10px] font-bold uppercase tracking-wider mb-1 text-center">Ancho (m)</label>
-            <input
-              type="number"
-              value={width === "" ? "" : width}
-              onChange={(e) => setWidth(e.target.value === "" ? "" : Number(e.target.value))}
-              placeholder="0"
-              className="hg-input text-center text-lg w-20 pointer-events-auto"
-              min="1"
-            />
-          </div>
-
-          <div className="flex flex-col text-[#C9A227] pointer-events-auto">
-            <label className="text-[10px] font-bold uppercase tracking-wider mb-1 text-center">Largo (m)</label>
-            <input
-              type="number"
-              value={length === "" ? "" : length}
-              onChange={(e) => setLength(e.target.value === "" ? "" : Number(e.target.value))}
-              placeholder="0"
-              className="hg-input text-center text-lg w-20 pointer-events-auto"
-              min="1"
-            />
-          </div>
-
-          <button 
-            onClick={onGenerateSalon}
-            className="hg-btn primary h-[50px] mt-auto ml-4 px-6 pointer-events-auto"
-          >
-            <Square size={18} />
-            GENERAR
-          </button>
+        {/* Quick Add Areas */}
+        <div className="flex items-center gap-3">
+           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Quick Add:</span>
+           <button onClick={() => handleAddArea("carpa")} className="hg-btn neon-green px-3 py-1 text-xs flex items-center gap-1"><Tent size={12}/> Carpa</button>
+           <button onClick={() => handleAddArea("terraza")} className="hg-btn neon-purple px-3 py-1 text-xs flex items-center gap-1"><Sun size={12}/> Terraza</button>
+           <button onClick={() => handleAddArea("cocina")} className="hg-btn neon-orange px-3 py-1 text-xs flex items-center gap-1"><Utensils size={12}/> Cocina</button>
+           <button onClick={() => handleAddArea("lounge")} className="hg-btn neon-pink px-3 py-1 text-xs flex items-center gap-1"><Armchair size={12}/> Lounge</button>
         </div>
 
-        {/* QUICK AREAS - FIXED BUTTONS */}
-        <div className="flex items-center gap-3 ml-8 pointer-events-auto">
-             <button onClick={() => handleAddArea("carpa")} className="hg-btn neon-green flex-col w-16 h-16 hover:scale-105 active:scale-95 pointer-events-auto"><Tent size={16}/> <span className="text-[9px]">CARPA</span></button>
-             <button onClick={() => handleAddArea("terraza")} className="hg-btn neon-purple flex-col w-16 h-16 hover:scale-105 active:scale-95 pointer-events-auto"><Sun size={16}/> <span className="text-[9px]">TERRAZA</span></button>
-             <button onClick={() => handleAddArea("cocina")} className="hg-btn neon-orange flex-col w-16 h-16 hover:scale-105 active:scale-95 pointer-events-auto"><Utensils size={16}/> <span className="text-[9px]">COCINA</span></button>
-             <button onClick={() => handleAddArea("lounge")} className="hg-btn neon-pink flex-col w-16 h-16 hover:scale-105 active:scale-95 pointer-events-auto"><Armchair size={16}/> <span className="text-[9px]">LOUNGE</span></button>
+        {/* Salon Generator */}
+        <div className="flex items-center gap-2 bg-[#1a1a1a] p-1 rounded-lg border border-white/5">
+           <div className="flex items-center gap-1 px-2">
+              <span className="text-gray-500 text-xs">W:</span>
+              <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} className="w-12 bg-transparent text-white border-b border-white/20 text-center outline-none" placeholder="30"/>
+           </div>
+           <div className="flex items-center gap-1 px-2">
+              <span className="text-gray-500 text-xs">L:</span>
+              <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} className="w-12 bg-transparent text-white border-b border-white/20 text-center outline-none" placeholder="28"/>
+           </div>
+           <button 
+             onClick={onGenerateSalon}
+             disabled={!width || !length}
+             className="hg-btn primary px-4 py-1 text-xs font-bold rounded-md whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             GENERATE SALON
+           </button>
         </div>
 
-        <div className="flex-1" />
-
-        {/* GOD MODE FEATURES */}
-        <div className="flex items-center gap-3 mr-4 border-r border-white/10 pr-4 pointer-events-auto">
-            <button onClick={simulateCrowd} className={`hg-btn ${guests.length > 0 ? 'primary' : 'neon'} flex-col h-16 w-16 pointer-events-auto`} title="Simular Invitados">
-                <Users size={20} />
-                <span className="text-[8px] mt-1">CROWD SIM</span>
-            </button>
-             <button onClick={onToggleNightMode} className={`hg-btn ${isNightMode ? 'primary' : 'neon'} flex-col h-16 w-16 pointer-events-auto`} title="Modo Neón">
-                <Lightbulb size={20} />
-                <span className="text-[8px] mt-1">NEON BLUEPRINT</span>
-            </button>
-        </div>
-
-        {/* SIDEBAR TOGGLES */}
-        <div className="flex items-center gap-3 pointer-events-auto">
-            <button onClick={onToggleCatalog} className="hg-btn neon h-14 pointer-events-auto">
-               <Monitor size={18} /> <span className="text-xs uppercase">Galería</span>
-            </button>
-             <button onClick={onToggleRules} className="hg-btn neon h-14 pointer-events-auto">
-               <Maximize size={18} /> <span className="text-xs uppercase">Reglas</span>
-            </button>
+        {/* Utility Toggles */}
+        <div className="flex items-center gap-2">
+           <button onClick={onToggleCatalog} className="hg-btn neon px-3 py-1 text-xs flex gap-2 items-center">
+              <Square size={12} /> Gallery
+           </button>
+           <button onClick={onToggleRules} className="hg-btn neon px-3 py-1 text-xs flex gap-2 items-center">
+              <MapIcon size={12} /> Grid
+           </button>
         </div>
 
       </div>
