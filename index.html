@@ -1,155 +1,124 @@
+
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="es">
+<head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>ARKHÉ HoloPlanner HG</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#050505">
+    <title>ARKHÉ HoloPlanner HG PRO MAX</title>
     <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/61/61456.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-      
-      :root {
-        --color-bg: #050505;
-        --color-gold: #D4AF37;
-        --color-gold-dim: rgba(212, 175, 55, 0.2);
-        --color-wine: #5A0F1B;
-        --color-wine-glow: rgba(90, 15, 27, 0.6);
-        --color-neon-blue: #00f3ff;
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --glass-bg: rgba(10, 10, 10, 0.85);
-      }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Grotesk:wght@300;500;700&display=swap');
+        
+        :root {
+            --hg-gold: #D4AF37;
+            --hg-gold-bright: #F2D06B;
+            --hg-wine: #5A0F1B;
+            --hg-bg: #050505;
+            --hg-glass: rgba(10, 10, 10, 0.96);
+            --hg-border: rgba(255, 255, 255, 0.12);
+        }
 
-      html, body, #root {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        background: var(--color-bg);
-        font-family: 'Inter', sans-serif;
-        color: #fff;
-        -webkit-font-smoothing: antialiased;
-        touch-action: none; /* Prevent mobile bounce */
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            scrollbar-width: none;
+        }
 
-      /* --- GOD PROTOCOL: INTERACTION ENFORCEMENT --- */
-      button, .hg-btn, input, select, [role="button"], .pointer-events-auto {
-          pointer-events: auto !important;
-          cursor: pointer;
-          position: relative; 
-          z-index: 9999; 
-      }
+        body, html, #root {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--hg-bg);
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            position: fixed;
+            touch-action: none;
+        }
 
-      /* Panels must float above canvas */
-      .hg-panel, .hg-card {
-          z-index: 10000 !important;
-          pointer-events: auto !important;
-      }
+        .font-display { font-family: 'Space Grotesk', sans-serif; }
 
-      /* Canvas Wrapper must stay below */
-      #canvas-wrapper {
-          z-index: 0 !important;
-      }
+        /* LAYER STABILIZATION */
+        #canvas-wrapper {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: auto;
+        }
 
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar { width: 4px; height: 4px; }
-      ::-webkit-scrollbar-track { background: #000; }
-      ::-webkit-scrollbar-thumb { background: var(--color-gold); border-radius: 2px; }
-      
-      .font-display { font-family: 'Space Grotesk', sans-serif; }
+        .hg-ui-layer {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            inset: 0;
+        }
 
-      /* HG Premium Grid */
-      .bg-grid-pattern {
-        background-image: 
-          linear-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(212, 175, 55, 0.05) 1px, transparent 1px);
-        background-size: 50px 50px;
-      }
+        .hg-ui-layer > * {
+            pointer-events: auto;
+        }
 
-      /* HG Premium Button Base */
-      .hg-btn {
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        backdrop-filter: blur(10px);
-        border: 1px solid var(--glass-border);
-        user-select: none;
-      }
-      .hg-btn:active { transform: scale(0.96); }
-      
-      .hg-btn.primary {
-        background: linear-gradient(135deg, var(--color-wine), #3d0610);
-        border: 1px solid var(--color-gold);
-        color: var(--color-gold);
-        box-shadow: 0 0 20px var(--color-wine-glow);
-      }
-      .hg-btn.primary:hover {
-        box-shadow: 0 0 35px var(--color-wine-glow);
-        filter: brightness(1.2);
-        transform: translateY(-2px);
-      }
+        /* PREMIUM COMPONENTS */
+        .glass-panel {
+            background: var(--hg-glass);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid var(--hg-border);
+            box-shadow: 0 10px 60px rgba(0,0,0,0.9);
+        }
 
-      .hg-btn.neon {
-        background: rgba(20, 20, 20, 0.8);
-        border-color: rgba(255, 255, 255, 0.15);
-        color: #e0e0e0;
-      }
-      .hg-btn.neon:hover {
-        background: rgba(212, 175, 55, 0.1);
-        border-color: var(--color-gold);
-        color: #fff;
-        box-shadow: 0 0 15px var(--color-gold-dim);
-        transform: translateY(-2px);
-      }
+        .hg-btn-gold {
+            background: linear-gradient(135deg, var(--hg-gold), #aa8a2a);
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
 
-      /* Input Styling */
-      .hg-input {
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #fff;
-        border-radius: 12px;
-        padding: 10px 14px;
-        outline: none;
-        transition: 0.3s;
-        font-family: 'Space Grotesk', monospace;
-      }
-      .hg-input:focus {
-        border-color: var(--color-gold);
-        box-shadow: 0 0 0 2px var(--color-gold-dim);
-        background: rgba(0, 0, 0, 0.8);
-      }
+        .hg-btn-gold:active { transform: scale(0.92); filter: brightness(1.2); }
 
-      /* Glass Panel */
-      .hg-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-      }
+        .hg-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .hg-btn:active { transform: scale(0.95); }
+
+        ::-webkit-scrollbar { display: none; }
+        
+        .will-change-transform { will-change: transform; }
+        
+        /* App Frame for Android Simulation */
+        .app-frame {
+            border: 2px solid var(--hg-border);
+            border-radius: 20px;
+        }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
-    "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "nanoid": "https://aistudiocdn.com/nanoid@^5.1.6"
-  }
-}
-</script>
-</head>
-  <body>
-    <div id="root"></div>
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js").catch((err) => console.log("SW Error", err));
-        });
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+        "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
+        "nanoid": "https://aistudiocdn.com/nanoid@^5.1.6",
+        "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1"
       }
+    }
     </script>
-  </body>
+</head>
+<body>
+    <div id="root"></div>
+</body>
 </html>

@@ -1,221 +1,185 @@
 
-import React, { useState, useRef, useEffect } from "react";
-import CatalogPanel from "./CatalogPanel";
-import { PropertiesPanel } from "./PropertiesPanel";
-import { NexusCanvas } from "./NexusCanvas";
-import AreaCreator from "./AreaCreator";
-import AreaRulesPanel from "../../components/AreaRulesPanel";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePlannerStore } from "../../store/usePlannerStore";
-import { useInteractiveStore } from "../../store/useInteractiveStore";
-import { HGBrain } from "../../ai/HGBrain";
-import HGSpaceTopBar from "../../components/HGSpaceTopBar";
-import { nanoid } from "nanoid";
-import HGCreatorButton from "../../components/HGCreatorButton";
-import { useHGCreatorStore } from "../../store/HGCreatorStore";
-import { useRealtime } from "../../hooks/useRealtime";
-import Collaborators from "../../components/Collaborators";
-
-const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+import { HGCoreAPI } from "../../api/HGCoreAPI";
+import { NexusCanvas } from "./NexusCanvas";
+import { PropertiesPanel } from "./PropertiesPanel";
+import CatalogPanel from "./CatalogPanel";
+import { Sparkles, Database, LayoutGrid, CloudSync, Maximize2, Mic, Settings } from "lucide-react";
 
 export default function MapEditor() {
-  const items = usePlannerStore((s) => s.items);
-  const areas = usePlannerStore((s) => s.areas);
-  const guests = usePlannerStore((s) => s.guests);
-  const updateItem = usePlannerStore((s) => s.updateItem);
-  const updateArea = usePlannerStore((s) => s.updateArea);
-  const addItem = usePlannerStore((s) => s.addItem);
-  const addArea = usePlannerStore((s) => s.addArea);
-  const clearHall = usePlannerStore((s) => s.clearHall);
-  const removeArea = usePlannerStore((s) => s.removeArea);
-  const selectedId = usePlannerStore((s) => s.selectedId);
-  const setSelectedId = usePlannerStore((s) => s.setSelectedId);
-  const reset = usePlannerStore((s) => s.reset);
-  
-  const { mode, setMode } = useInteractiveStore();
-  const { generatedItems } = useHGCreatorStore();
-  
-  // Realtime Connection
-  const { broadcastCursor } = useRealtime();
-
-  const [aiText, setAiText] = useState("");
-  const [is3D, setIs3D] = useState(false);
-  const [showAreaCreator, setShowAreaCreator] = useState(false);
-  const [showRules, setShowRules] = useState(false);
-  const [showCatalog, setShowCatalog] = useState(true);
-  const [isNightMode, setIsNightMode] = useState(false);
-  
-  // Viewport State
+  const store = usePlannerStore();
   const [scale, setScale] = useState(1);
-  const [pan, setPan] = useState({ x: -2000, y: -2000 }); 
-  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
-  const lastMouseRef = useRef({ x: 0, y: 0 });
-  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: -2500, y: -2500 });
+  const [is3D, setIs3D] = useState(false);
+  const [aiCommand, setAiCommand] = useState("");
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Inputs
-  const [width, setWidth] = useState<number | "">(30);
-  const [length, setLength] = useState<number | "">(28);
-  const [height, setHeight] = useState<number | "">(6);
+  // Auto-load project on startup
+  useEffect(() => {
+    store.loadCloud(store.projectId);
+  }, []);
 
-  // --- ZOOM & PAN LOGIC ---
-  const handleWheel = (e: WheelEvent) => {
+  // Stabilized Pan Logic (Mobile Friendly)
+  const handleMove = useCallback((dx: number, dy: number) => {
+    setPan(p => ({ x: p.x + dx, y: p.y + dy }));
+  }, []);
+
+  const handleZoom = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-         setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
-    } else {
-         const direction = e.deltaY > 0 ? -1 : 1;
-         const newScale = clamp(scale + direction * 0.05, 0.3, 4);
-         setScale(newScale);
-    }
-  };
+    const factor = e.deltaY > 0 ? 0.92 : 1.08;
+    setScale(s => Math.min(Math.max(s * factor, 0.15), 5));
+  }, []);
 
   useEffect(() => {
-    const wrapper = canvasWrapperRef.current;
-    if (wrapper) {
-      wrapper.addEventListener("wheel", handleWheel, { passive: false });
-    }
-    return () => {
-      if (wrapper) wrapper.removeEventListener("wheel", handleWheel);
-    }
-  }, [scale]); 
+    const el = viewportRef.current;
+    if (el) el.addEventListener("wheel", handleZoom, { passive: false });
+    return () => el?.removeEventListener("wheel", handleZoom);
+  }, [handleZoom]);
 
-  const zoomIn = () => setScale(s => clamp(s + 0.2, 0.3, 4));
-  const zoomOut = () => setScale(s => clamp(s - 0.2, 0.3, 4));
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-      if((e.target as HTMLElement).closest('.hg-btn') || (e.target as HTMLElement).closest('.hg-input')) return;
-
-      const targetId = (e.target as HTMLElement).id;
-      if (targetId === "plano-fondo" || targetId === "canvas-wrapper" || targetId.includes("grid")) {
-          setIsDraggingCanvas(true);
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          setSelectedId(null); 
+  const executeAI = async () => {
+    if (!aiCommand.trim()) return;
+    setIsProcessingAI(true);
+    try {
+      const result = await HGCoreAPI.analyzeLayout(aiCommand, { items: store.items, areas: store.areas });
+      if (Array.isArray(result)) {
+        // Apply AI suggestions
+        result.forEach(item => store.addItem(item));
       }
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-      // 1. Pan logic
-      if (isDraggingCanvas) {
-          const dx = e.clientX - lastMouseRef.current.x;
-          const dy = e.clientY - lastMouseRef.current.y;
-          setPan(p => ({ x: p.x + dx, y: p.y + dy }));
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-      }
-
-      // 2. Real-time Cursor Broadcast
-      // Need to convert screen coords to canvas coords
-      // Coords = (Client - CenterOffset - Pan) / Scale
-      // This is rough approximation for the demo cursor visual
-      const canvasX = (e.clientX - window.innerWidth / 2 - pan.x) / scale + 2500;
-      const canvasY = (e.clientY - window.innerHeight / 2 - pan.y) / scale + 2500;
-      
-      broadcastCursor(canvasX, canvasY);
-  };
-
-  const handleCanvasMouseUp = () => setIsDraggingCanvas(false);
-
-  // AI
-  async function executeAI(cmd?: string) {
-    const text = cmd || aiText;
-    if (!text) return;
-    const response = await HGBrain.process(text);
-    setAiText(response); 
-    setTimeout(() => setAiText(""), 4000);
-  }
-
-  const generateHall = () => {
-    if (!width || !length) return;
-    areas.forEach(a => { if (a.type === 'salon') removeArea(a.id); });
-    clearHall();
-    addArea({
-        id: nanoid(),
-        name: "Gran Salón",
-        width: Number(width),
-        height: Number(length),
-        x: 2500,
-        y: 2500,
-        type: "salon",
-        color: "#1e293b"
-    });
+      setAiCommand("");
+    } catch (e) {
+      store.setError("AI Analysis Failure");
+    } finally {
+      setIsProcessingAI(false);
+    }
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#050505] overflow-hidden font-sans text-white relative">
+    <div className="w-full h-full bg-[#050505] relative overflow-hidden flex flex-col font-sans select-none touch-none">
       
-      {/* 1. TOP BAR (UI LAYER - Z-INDEX HIGH) */}
-      <div className="relative z-[100] pointer-events-auto">
-        <div className="absolute top-2 right-4 z-[2000]">
-           <Collaborators />
-        </div>
-        <HGSpaceTopBar 
-            aiText={aiText} setAiText={setAiText}
-            onMic={() => {}} onExecute={() => executeAI()}
-            onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={reset}
-            onToggle3D={() => setIs3D(!is3D)} is3D={is3D}
-            onToggleCatalog={() => setShowCatalog(!showCatalog)}
-            onToggleRules={() => setShowRules(!showRules)}
-            width={width} setWidth={setWidth}
-            length={length} setLength={setLength}
-            height={height} setHeight={setHeight}
-            onGenerateSalon={generateHall}
-            onToggleNightMode={() => setIsNightMode(!isNightMode)}
-            isNightMode={isNightMode}
-        />
-      </div>
-
-      {/* 2. CANVAS AREA (LOWER LAYER) */}
-      <div className="flex-1 relative overflow-hidden flex z-0">
-        <div 
-            className={`flex-1 h-full relative bg-[#0a0a0a] overflow-hidden ${isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab'}`}
-            id="canvas-wrapper"
-            ref={canvasWrapperRef}
-            onMouseDown={handleCanvasMouseDown}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleCanvasMouseUp}
-            onMouseLeave={handleCanvasMouseUp}
-            style={{ zIndex: 0 }} 
-        >
-             <div 
-                className="absolute will-change-transform"
-                style={{
-                    width: '5000px',
-                    height: '5000px',
-                    left: '50%',
-                    top: '50%',
-                    marginLeft: '-2500px',
-                    marginTop: '-2500px',
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale}) ${is3D ? 'perspective(2000px) rotateX(35deg) translateY(-100px)' : ''}`,
-                    transformOrigin: "center center",
-                    transformStyle: 'preserve-3d',
-                    pointerEvents: 'none'
-                }}
-             >
-                <NexusCanvas
-                    items={items}
-                    areas={areas}
-                    guests={guests}
-                    selected={selectedId}
-                    onSelect={setSelectedId}
-                    onMove={(id, p) => updateItem(id, p)}
-                    onMoveArea={(id, p) => updateArea(id, p)}
-                    scale={scale}
-                    is3D={is3D}
-                    showGrid={showRules}
-                    isNightMode={isNightMode}
-                />
-             </div>
-        </div>
-
-        {/* 3. OVERLAYS (Z-INDEX HIGH) */}
-        {showCatalog && <CatalogPanel />}
-        <PropertiesPanel />
-        <HGCreatorButton />
+      {/* 4D DIAMOND HUD: UI LAYER */}
+      <div className="hg-ui-layer">
         
-        {showAreaCreator && (
-          <div className="absolute top-6 left-6 z-[200]">
-             <AreaCreator onClose={() => setShowAreaCreator(false)} />
+        {/* Top Control Bar */}
+        <div className="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none">
+          <div className="glass-panel p-4 rounded-2xl flex items-center gap-6 pointer-events-auto border border-white/5 shadow-2xl">
+            <div className="flex flex-col pr-4 border-r border-white/10">
+              <span className="text-[10px] text-[#D4AF37] font-bold tracking-[0.2em] uppercase">ARKHÉ OS v4.0</span>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${store.isSyncing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_currentColor]`} />
+                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-tighter">
+                  {store.isSyncing ? 'SYNCING NUBE...' : 'SAFE & SECURED'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setIs3D(!is3D)} 
+                className={`p-2.5 rounded-xl transition-all hg-btn ${is3D ? 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.4)]' : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'}`}
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button className="p-2.5 bg-white/5 text-gray-400 hover:text-white rounded-xl border border-white/5 hg-btn"><Maximize2 size={18} /></button>
+              <button className="p-2.5 bg-white/5 text-gray-400 hover:text-white rounded-xl border border-white/5 hg-btn"><Settings size={18} /></button>
+            </div>
+          </div>
+
+          <div className="flex gap-4 pointer-events-auto">
+             <div className="glass-panel px-6 py-4 rounded-2xl flex items-center gap-4 border border-[#D4AF37]/20">
+               <div className="flex flex-col text-right">
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Master ID</span>
+                  <span className="text-xs font-mono text-[#D4AF37] font-bold">{store.projectId}</span>
+               </div>
+               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#5A0F1B] to-[#D4AF37] p-[1px]">
+                  <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold">HG</div>
+               </div>
+             </div>
+          </div>
+        </div>
+
+        {/* PROMPT COMMANDER: DIAMOND AI BRIDGE */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 pointer-events-auto">
+          <div className="glass-panel p-2 rounded-2xl flex gap-3 border border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+            <div className="flex-1 flex items-center gap-3 px-4">
+               <Sparkles size={18} className={`${isProcessingAI ? 'text-blue-400 animate-spin' : 'text-[#D4AF37]'}`} />
+               <input 
+                value={aiCommand}
+                onChange={(e) => setAiCommand(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && executeAI()}
+                placeholder="Ask ARKHÉ AI: 'Organize tables for 300 guests', 'Auto-layout dancefloor'..."
+                className="flex-1 bg-transparent py-4 outline-none text-sm font-medium text-white placeholder-gray-600 font-display"
+               />
+               <button className="text-gray-500 hover:text-white transition-colors"><Mic size={18}/></button>
+            </div>
+            <button 
+              onClick={executeAI}
+              disabled={isProcessingAI || !aiCommand.trim()}
+              className="hg-btn-gold px-8 h-full rounded-xl flex items-center gap-2 group disabled:opacity-30 disabled:grayscale"
+            >
+              <span className="text-xs uppercase tracking-widest">Execute AI</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Error Shield Indicator */}
+        {store.lastError && (
+          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-red-900/40 border border-red-500/50 text-red-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest backdrop-blur-md animate-bounce">
+            Alert: {store.lastError}
           </div>
         )}
       </div>
+
+      {/* NEXUS RENDER ENGINE VIEWPORT */}
+      <div 
+        ref={viewportRef}
+        id="canvas-wrapper" 
+        className="cursor-crosshair active:cursor-grabbing h-full w-full"
+        onMouseDown={(e) => {
+            if (e.buttons !== 1 || (e.target as HTMLElement).closest('.hg-ui-layer')) return;
+            const onMouseMove = (moveE: MouseEvent) => handleMove(moveE.movementX, moveE.movementY);
+            const onMouseUp = () => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+            };
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }}
+      >
+        <div 
+          className="will-change-transform transform-gpu"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale}) ${is3D ? 'perspective(2000px) rotateX(42deg) translateY(-250px)' : ''}`,
+            transformOrigin: '0 0',
+            transition: 'transform 0.08s cubic-bezier(0.1, 0.9, 0.2, 1)',
+            transformStyle: 'preserve-3d'
+          }}
+        >
+          <NexusCanvas 
+            items={store.items}
+            areas={store.areas}
+            selected={store.selectedId}
+            onSelect={store.setSelectedId}
+            onMove={store.updateItem}
+            scale={scale}
+            is3D={is3D}
+            showGrid={true}
+            isNightMode={store.timeOfDay > 18 || store.timeOfDay < 6}
+          />
+        </div>
+      </div>
+
+      {/* HUD SIDEBARS */}
+      <div className="hg-ui-layer">
+        <div className="absolute right-6 top-32 pointer-events-auto">
+          <CatalogPanel />
+        </div>
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 pointer-events-auto">
+          <PropertiesPanel />
+        </div>
+      </div>
+
     </div>
   );
 }

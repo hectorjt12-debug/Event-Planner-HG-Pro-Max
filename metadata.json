@@ -1,9 +1,28 @@
 {
-  "name": "Event Planner HG Pro Max 2.0",
-  "description": "A premium, multi-modal AI suite powered by Gemini 2.5 and 3.0 models. Features include real-time voice conversation, cinematic video generation, professional image synthesis, and map-grounded intelligence.",
+  "name": "ARKHÉ HoloPlanner HG PRO MAX",
+  "short_name": "ARKHÉ HG",
+  "version": "4.0.0",
+  "description": "Premium AI Event Planning Suite by OMNICORP for Web and Android",
   "requestFramePermissions": [
+    "camera",
     "microphone",
-    "geolocation",
-    "camera"
-  ]
+    "geolocation"
+  ],
+  "author": "OMNICORP IA",
+  "theme_color": "#050505",
+  "background_color": "#050505",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "/",
+  "platform": {
+    "target": [
+      "web",
+      "android",
+      "ios"
+    ],
+    "cloud": "google-cloud-platform",
+    "realtime": "firebase",
+    "hosting": "google-cloud-run",
+    "api_version": "v4-diamond"
+  }
 }

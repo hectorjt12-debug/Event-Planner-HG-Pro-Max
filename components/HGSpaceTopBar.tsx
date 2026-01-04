@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mic, Play, ZoomIn, ZoomOut, Box, Move, RotateCw, Copy, Lock, Sparkles, Map as MapIcon, Moon, Sun, Volume2, Clock, Users, Pause, CalendarDays } from 'lucide-react';
+import { Mic, Play, ZoomIn, ZoomOut, Box, Move, RotateCw, Copy, Lock, Sparkles, Map as MapIcon, Moon, Sun, Volume2, Clock, Users, Pause, CalendarDays, FastForward } from 'lucide-react';
 import { useInteractiveStore } from '../store/useInteractiveStore';
 import { usePlannerStore, EventPhase } from '../store/usePlannerStore';
 import { nanoid } from 'nanoid';
@@ -44,6 +44,7 @@ export default function HGSpaceTopBar({
     showAcousticHeatmap, setShowAcousticHeatmap,
     showChronosFlow, setShowChronosFlow,
     simulationRunning, toggleSimulation,
+    autoTimeline, toggleAutoTimeline,
     timeOfDay, setTimeOfDay,
     themeMode, setThemeMode,
     eventPhase, setEventPhase,
@@ -84,11 +85,18 @@ export default function HGSpaceTopBar({
     <div className="relative w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/10 z-[2000] shadow-2xl pointer-events-auto h-auto flex flex-col">
       
       {/* 4D CONTROL DECK: Time & Phases */}
-      <div className="flex items-center justify-between px-6 py-2 bg-[#5A0F1B]/10 border-b border-white/5 overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between px-6 py-2 bg-[#5A0F1B]/15 border-b border-white/5 overflow-x-auto no-scrollbar">
          <div className="flex items-center gap-4 min-w-max">
-            <span className="text-[#D4AF37] font-display font-bold text-[10px] tracking-[0.2em] flex items-center gap-2">
-               <CalendarDays size={14} /> 4D TIMELINE
-            </span>
+            <div className="flex items-center gap-2 mr-2">
+               <button 
+                  onClick={toggleAutoTimeline} 
+                  className={`p-2 rounded-full transition-all ${autoTimeline ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.6)] animate-pulse' : 'bg-white/5 text-gray-500'}`}
+                  title="Play 4D Simulation"
+               >
+                  {autoTimeline ? <Pause size={14} /> : <Play size={14} fill="currentColor" />}
+               </button>
+               <span className="text-[#D4AF37] font-display font-bold text-[10px] tracking-[0.2em] hidden sm:block">4D CHRONOS</span>
+            </div>
             
             <div className="flex gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
                {phases.map(p => (
@@ -107,7 +115,7 @@ export default function HGSpaceTopBar({
             <div className="flex items-center gap-3">
                <div className="flex items-center gap-2">
                   <Clock size={12} className="text-blue-400" />
-                  <span className="text-[10px] font-mono text-gray-400">{String(Math.floor(timeOfDay)).padStart(2, '0')}:00</span>
+                  <span className="text-[10px] font-mono text-gray-300">{String(Math.floor(timeOfDay)).padStart(2, '0')}:00</span>
                </div>
                <div className="flex items-center gap-2">
                   <Users size={12} className="text-green-400" />
@@ -171,7 +179,7 @@ export default function HGSpaceTopBar({
           <input 
             value={aiText}
             onChange={(e) => setAiText(e.target.value)}
-            placeholder="AI Command: 'Arrange party layout', 'Set to evening gala'..."
+            placeholder="AI Command: 'Simulate full cycle', 'Arrange party layout'..."
             className="flex-1 hg-input bg-black/60 border-white/10 text-white placeholder-gray-500 text-sm font-display"
             onKeyDown={(e) => e.key === 'Enter' && onExecute()}
           />

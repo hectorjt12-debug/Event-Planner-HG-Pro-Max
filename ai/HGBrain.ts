@@ -58,23 +58,39 @@ export const HGBrain = {
     const store = usePlannerStore.getState();
     const cmd = command.toLowerCase();
 
-    // 4D / Phase Transitions
+    // 4D / Phase Transitions & Simulation
+    if (cmd.includes("simular") || cmd.includes("simulate") || cmd.includes("play")) {
+       store.toggleAutoTimeline();
+       if (!store.simulationRunning) store.toggleSimulation();
+       return "Iniciando simulación 4D. El tiempo avanzará automáticamente por todas las fases.";
+    }
+
     if (cmd.includes("fiesta") || cmd.includes("party")) {
        store.setEventPhase('party');
-       return "Activando protocolo de fiesta: luces bajas, heatmap acústico y gente a la pista.";
+       store.setShowChronosFlow(true);
+       return "Activando protocolo de fiesta: heatmap acústico y simulación de baile activa.";
     }
+
     if (cmd.includes("bienvenida") || cmd.includes("welcome")) {
        store.setEventPhase('welcome');
-       return "Activando protocolo de bienvenida: recepción abierta y flujo de entrada.";
+       return "Activando protocolo de bienvenida: flujo de entrada de invitados activado.";
     }
+
     if (cmd.includes("montaje") || cmd.includes("setup")) {
        store.setEventPhase('setup');
-       return "Regresando a modo montaje: luces de trabajo y área despejada.";
+       return "Regresando a modo montaje: áreas despejadas para trabajo técnico.";
     }
-    if (cmd.includes("noche")) {
+
+    if (cmd.includes("noche") || cmd.includes("night")) {
        store.setTimeOfDay(22);
        store.setShowChronosFlow(true);
        return "Ajustando cronos a modo nocturno.";
+    }
+
+    if (cmd.includes("mañana") || cmd.includes("day")) {
+       store.setTimeOfDay(11);
+       store.setShowChronosFlow(true);
+       return "Ajustando cronos a modo diurno.";
     }
 
     // Numbers
@@ -151,6 +167,6 @@ export const HGBrain = {
         return "Protocolo de Boda Completa generado exitosamente.";
     }
 
-    return "No pude procesar esa orden. Prueba con 'fiesta', 'montaje' o 'agregar 10 mesas'.";
+    return "Orden no reconocida. Prueba con 'simular evento', 'modo noche' o 'poner sillas'.";
   },
 };
