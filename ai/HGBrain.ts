@@ -1,4 +1,5 @@
-import { usePlannerStore, PlannerItem, Area } from "../store/usePlannerStore";
+
+import { usePlannerStore, PlannerItem, Area, EventPhase } from "../store/usePlannerStore";
 import { HGLayoutAI } from "../utils/HGLayoutAI";
 import { rectsCollide } from "../utils/collision";
 import { nanoid } from "nanoid";
@@ -18,7 +19,7 @@ export function canPlace(item: PlannerItem | Partial<PlannerItem>, areas: Area[]
     const areaRect = {
       x: area.x,
       y: area.y,
-      width: area.width * 20, // Area dimensions are stored in meters, items in pixels usually (20px = 1m)
+      width: area.width * 20, 
       height: area.height * 20
     };
     if (rectsCollide(itemRect, areaRect)) return true;
@@ -57,10 +58,29 @@ export const HGBrain = {
     const store = usePlannerStore.getState();
     const cmd = command.toLowerCase();
 
-    // Número general
+    // 4D / Phase Transitions
+    if (cmd.includes("fiesta") || cmd.includes("party")) {
+       store.setEventPhase('party');
+       return "Activando protocolo de fiesta: luces bajas, heatmap acústico y gente a la pista.";
+    }
+    if (cmd.includes("bienvenida") || cmd.includes("welcome")) {
+       store.setEventPhase('welcome');
+       return "Activando protocolo de bienvenida: recepción abierta y flujo de entrada.";
+    }
+    if (cmd.includes("montaje") || cmd.includes("setup")) {
+       store.setEventPhase('setup');
+       return "Regresando a modo montaje: luces de trabajo y área despejada.";
+    }
+    if (cmd.includes("noche")) {
+       store.setTimeOfDay(22);
+       store.setShowChronosFlow(true);
+       return "Ajustando cronos a modo nocturno.";
+    }
+
+    // Numbers
     const num = parseInt(cmd.match(/\d+/)?.[0] || "0");
 
-    // 1) Crear mesas
+    // 1) Create items
     if (cmd.includes("mesa") && (cmd.includes("redonda") || cmd.includes("10"))) {
        const count = num || 1;
        for (let i = 0; i < count; i++)
@@ -74,34 +94,34 @@ export const HGBrain = {
           capacity: 10,
           type: "round10",
           category: "mesas",
-          x: 100 + (i * 50),
-          y: 100 + (i * 50),
+          x: 2400 + (i * 10),
+          y: 2400 + (i * 10),
         });
-      return `Listo: agregué ${count} mesas.`;
+      return `Hecho: ${count} mesas redondas añadidas al plano.`;
     }
 
-    // 2) Autoacomodo inteligente
-    if (cmd.includes("acomodo") || cmd.includes("acomodar")) {
+    // 2) Layout adjustment
+    if (cmd.includes("acomodo") || cmd.includes("acomodar") || cmd.includes("layout")) {
       if (store.areas.length > 0) {
          const newItems = autoPlace(store.items, store.areas);
          store.setAll(newItems);
-         return "Acomodo restringido a áreas realizado.";
+         return "Layout optimizado basado en las áreas definidas.";
       } else {
          const items = store.items;
          const arranged = HGLayoutAI.smart(items);
          store.setAll(arranged);
-         return "Hecho: acomodo IA estándar aplicado.";
+         return "Acomodo inteligente estándar aplicado satisfactoriamente.";
       }
     }
 
-    // 3) Quitar sillas / poner sillas
+    // 3) Chairs
     if (cmd.includes("quitar sillas")) {
       const chairs = store.items.filter((i) => i.type === "chair" || i.category === "sillas");
       chairs.forEach((i) => store.removeItem(i.id));
-      return "Sillas retiradas.";
+      return "Todas las sillas han sido retiradas.";
     }
 
-    if (cmd.includes("poner sillas")) {
+    if (cmd.includes("poner sillas") || cmd.includes("agregar sillas")) {
       store.items.forEach((table) => {
         if (table.capacity && (table.category === 'mesas' || table.type?.includes('round'))) {
           for (let i = 0; i < table.capacity; i++) {
@@ -121,16 +141,16 @@ export const HGBrain = {
           }
         }
       });
-      return "Sillas colocadas automáticamente.";
+      return "Sillas auto-distribuidas alrededor de las mesas.";
     }
     
-    // 4) Blueprint
-    if (cmd.includes("boda") || cmd.includes("blueprint")) {
+    // 4) Complete Wedding Blueprint
+    if (cmd.includes("boda") || cmd.includes("boda completa")) {
         const { BlueprintHG } = await import("./BlueprintHG");
         BlueprintHG.fullWedding();
-        return "Boda completa generada.";
+        return "Protocolo de Boda Completa generado exitosamente.";
     }
 
-    return "No entendí, jefe. Reformula la orden.";
+    return "No pude procesar esa orden. Prueba con 'fiesta', 'montaje' o 'agregar 10 mesas'.";
   },
 };

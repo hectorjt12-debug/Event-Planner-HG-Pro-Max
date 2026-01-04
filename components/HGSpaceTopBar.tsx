@@ -1,7 +1,8 @@
+
 import React from 'react';
-import { Mic, Play, ZoomIn, ZoomOut, RotateCcw, Box, Move, RotateCw, Copy, Lock, Ungroup, Monitor, Maximize, Tent, Utensils, Armchair, Sun, Square, Users, Lightbulb, Sparkles, Map as MapIcon, Moon } from 'lucide-react';
+import { Mic, Play, ZoomIn, ZoomOut, Box, Move, RotateCw, Copy, Lock, Sparkles, Map as MapIcon, Moon, Sun, Volume2, Clock, Users, Pause, CalendarDays } from 'lucide-react';
 import { useInteractiveStore } from '../store/useInteractiveStore';
-import { usePlannerStore, Guest } from '../store/usePlannerStore';
+import { usePlannerStore, EventPhase } from '../store/usePlannerStore';
 import { nanoid } from 'nanoid';
 
 interface HGSpaceTopBarProps {
@@ -38,7 +39,16 @@ export default function HGSpaceTopBar({
   onToggleNightMode, isNightMode
 }: HGSpaceTopBarProps) {
   const { mode, setMode } = useInteractiveStore();
-  const { addArea, setGuests, items, guests } = usePlannerStore();
+  const { 
+    addArea, 
+    showAcousticHeatmap, setShowAcousticHeatmap,
+    showChronosFlow, setShowChronosFlow,
+    simulationRunning, toggleSimulation,
+    timeOfDay, setTimeOfDay,
+    themeMode, setThemeMode,
+    eventPhase, setEventPhase,
+    simulationDensity, setSimulationDensity
+  } = usePlannerStore();
 
   const handleAddArea = (type: "carpa" | "terraza" | "cocina" | "lounge") => {
     const configs = {
@@ -62,10 +72,78 @@ export default function HGSpaceTopBar({
     });
   };
 
+  const phases: {id: EventPhase, label: string}[] = [
+    { id: 'setup', label: 'Montaje' },
+    { id: 'welcome', label: 'Bienvenida' },
+    { id: 'main', label: 'Cena' },
+    { id: 'party', label: 'Fiesta' },
+    { id: 'closing', label: 'Cierre' }
+  ];
+
   return (
     <div className="relative w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/10 z-[2000] shadow-2xl pointer-events-auto h-auto flex flex-col">
       
-      {/* UPPER DECK: AI & Main Controls */}
+      {/* 4D CONTROL DECK: Time & Phases */}
+      <div className="flex items-center justify-between px-6 py-2 bg-[#5A0F1B]/10 border-b border-white/5 overflow-x-auto no-scrollbar">
+         <div className="flex items-center gap-4 min-w-max">
+            <span className="text-[#D4AF37] font-display font-bold text-[10px] tracking-[0.2em] flex items-center gap-2">
+               <CalendarDays size={14} /> 4D TIMELINE
+            </span>
+            
+            <div className="flex gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
+               {phases.map(p => (
+                 <button 
+                   key={p.id}
+                   onClick={() => setEventPhase(p.id)}
+                   className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all uppercase tracking-widest ${eventPhase === p.id ? 'bg-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
+                 >
+                    {p.label}
+                 </button>
+               ))}
+            </div>
+
+            <div className="h-4 w-px bg-white/10 mx-2" />
+
+            <div className="flex items-center gap-3">
+               <div className="flex items-center gap-2">
+                  <Clock size={12} className="text-blue-400" />
+                  <span className="text-[10px] font-mono text-gray-400">{String(Math.floor(timeOfDay)).padStart(2, '0')}:00</span>
+               </div>
+               <div className="flex items-center gap-2">
+                  <Users size={12} className="text-green-400" />
+                  <input 
+                    type="range" min="0" max="200" step="10" 
+                    value={simulationDensity} onChange={(e) => setSimulationDensity(Number(e.target.value))}
+                    className="w-16 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#D4AF37]"
+                  />
+               </div>
+            </div>
+         </div>
+
+         <div className="flex items-center gap-4 ml-4 min-w-max">
+            <button 
+               onClick={() => setShowAcousticHeatmap(!showAcousticHeatmap)}
+               className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] uppercase font-bold tracking-widest transition-all ${showAcousticHeatmap ? 'border-red-500 text-red-400 bg-red-900/20' : 'border-white/5 text-gray-500'}`}
+            >
+               <Volume2 size={12} /> Acoustic
+            </button>
+            <div className="flex items-center gap-2">
+               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Style</span>
+               <select 
+                  value={themeMode} 
+                  onChange={(e) => setThemeMode(e.target.value as any)}
+                  className="bg-black/50 border border-white/10 text-[#D4AF37] rounded-md px-2 py-0.5 outline-none text-[10px] font-bold uppercase"
+               >
+                  <option value="luxury">Luxury</option>
+                  <option value="blueprint">Blueprint</option>
+                  <option value="cyberpunk">Cyberpunk</option>
+                  <option value="watercolor">Watercolor</option>
+               </select>
+            </div>
+         </div>
+      </div>
+
+      {/* COMMAND DECK: AI & Core Tools */}
       <div className="flex flex-wrap items-center justify-between px-6 py-3 border-b border-white/5 gap-4">
         
         {/* Interaction Modes */}
@@ -87,27 +165,27 @@ export default function HGSpaceTopBar({
 
         {/* AI Command Center */}
         <div className="flex-1 max-w-2xl flex items-center gap-2 mx-auto">
-          <button onClick={onMic} className="hg-btn primary p-3 rounded-xl animate-pulse hover:animate-none shadow-lg shadow-red-900/20">
+          <button onClick={onMic} className="hg-btn primary p-3 rounded-xl animate-pulse hover:animate-none shadow-lg shadow-[#5A0F1B]/20">
              <Mic size={20} />
           </button>
           <input 
             value={aiText}
             onChange={(e) => setAiText(e.target.value)}
-            placeholder="Describe your event (e.g., 'Wedding setup for 200 pax with gold chairs')"
-            className="flex-1 hg-input bg-black/60 border-white/10 text-white placeholder-gray-500 text-sm"
+            placeholder="AI Command: 'Arrange party layout', 'Set to evening gala'..."
+            className="flex-1 hg-input bg-black/60 border-white/10 text-white placeholder-gray-500 text-sm font-display"
             onKeyDown={(e) => e.key === 'Enter' && onExecute()}
           />
-          <button onClick={onExecute} className="hg-btn neon p-3 rounded-xl text-[#D4AF37]">
+          <button onClick={onExecute} className="hg-btn neon p-3 rounded-xl text-[#D4AF37] hover:scale-105 transition-all">
              <Sparkles size={20} />
           </button>
         </div>
 
         {/* View Controls */}
         <div className="flex items-center gap-2">
-           <button onClick={onToggle3D} className={`hg-btn neon p-2 ${is3D ? 'text-[#D4AF37] border-[#D4AF37]' : ''}`} title="3D View">
-              <Box size={18} />
+           <button onClick={onToggle3D} className={`hg-btn neon p-2 group transition-all ${is3D ? 'text-[#D4AF37] border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]' : ''}`} title="Toggle 3D Perspective">
+              <Box size={18} className={is3D ? 'rotate-12' : ''} />
            </button>
-           <button onClick={onToggleNightMode} className={`hg-btn neon p-2 ${isNightMode ? 'text-blue-400' : ''}`} title="Night Mode">
+           <button onClick={onToggleNightMode} className={`hg-btn neon p-2 ${isNightMode ? 'text-blue-400 border-blue-900' : ''}`} title="Quick Night Toggle">
               {isNightMode ? <Moon size={18} /> : <Sun size={18} />}
            </button>
            <div className="w-px h-6 bg-white/10 mx-1" />
@@ -116,47 +194,26 @@ export default function HGSpaceTopBar({
         </div>
       </div>
 
-      {/* LOWER DECK: Quick Areas & Salon Config */}
+      {/* QUICK ACTIONS DECK */}
       <div className="flex flex-wrap items-center justify-between px-6 py-2 bg-black/60 gap-4 text-sm">
-        
-        {/* Quick Add Areas */}
         <div className="flex items-center gap-3">
-           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Quick Add:</span>
-           <button onClick={() => handleAddArea("carpa")} className="hg-btn neon-green px-3 py-1 text-xs flex items-center gap-1"><Tent size={12}/> Carpa</button>
-           <button onClick={() => handleAddArea("terraza")} className="hg-btn neon-purple px-3 py-1 text-xs flex items-center gap-1"><Sun size={12}/> Terraza</button>
-           <button onClick={() => handleAddArea("cocina")} className="hg-btn neon-orange px-3 py-1 text-xs flex items-center gap-1"><Utensils size={12}/> Cocina</button>
-           <button onClick={() => handleAddArea("lounge")} className="hg-btn neon-pink px-3 py-1 text-xs flex items-center gap-1"><Armchair size={12}/> Lounge</button>
+           <button onClick={() => handleAddArea("carpa")} className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors">+ Carpa</button>
+           <button onClick={() => handleAddArea("terraza")} className="text-[10px] font-bold uppercase tracking-widest text-purple-400 hover:text-purple-300 transition-colors">+ Terraza</button>
+           <button onClick={() => handleAddArea("cocina")} className="text-[10px] font-bold uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors">+ Cocina</button>
+           <button onClick={() => handleAddArea("lounge")} className="text-[10px] font-bold uppercase tracking-widest text-pink-400 hover:text-pink-300 transition-colors">+ Lounge</button>
         </div>
 
-        {/* Salon Generator */}
-        <div className="flex items-center gap-2 bg-[#1a1a1a] p-1 rounded-lg border border-white/5">
-           <div className="flex items-center gap-1 px-2">
-              <span className="text-gray-500 text-xs">W:</span>
-              <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} className="w-12 bg-transparent text-white border-b border-white/20 text-center outline-none" placeholder="30"/>
+        <div className="flex items-center gap-3">
+           <div className="flex items-center gap-2 bg-black/40 px-2 py-1 rounded border border-white/5">
+              <span className="text-[9px] text-gray-500 font-mono uppercase">Venue</span>
+              <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} className="w-8 bg-transparent text-[#D4AF37] text-center outline-none text-xs font-bold" placeholder="30"/>
+              <span className="text-gray-700">×</span>
+              <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} className="w-8 bg-transparent text-[#D4AF37] text-center outline-none text-xs font-bold" placeholder="28"/>
+              <button onClick={onGenerateSalon} className="ml-2 text-[10px] font-bold text-white bg-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-500 transition-all">GEN</button>
            </div>
-           <div className="flex items-center gap-1 px-2">
-              <span className="text-gray-500 text-xs">L:</span>
-              <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} className="w-12 bg-transparent text-white border-b border-white/20 text-center outline-none" placeholder="28"/>
-           </div>
-           <button 
-             onClick={onGenerateSalon}
-             disabled={!width || !length}
-             className="hg-btn primary px-4 py-1 text-xs font-bold rounded-md whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             GENERATE SALON
-           </button>
+           <button onClick={onToggleCatalog} className="text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white transition-colors">Catalog</button>
+           <button onClick={onToggleRules} className="text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white transition-colors">Grid</button>
         </div>
-
-        {/* Utility Toggles */}
-        <div className="flex items-center gap-2">
-           <button onClick={onToggleCatalog} className="hg-btn neon px-3 py-1 text-xs flex gap-2 items-center">
-              <Square size={12} /> Gallery
-           </button>
-           <button onClick={onToggleRules} className="hg-btn neon px-3 py-1 text-xs flex gap-2 items-center">
-              <MapIcon size={12} /> Grid
-           </button>
-        </div>
-
       </div>
     </div>
   );

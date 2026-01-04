@@ -1,4 +1,4 @@
-import React, { Component, type ReactNode, type ErrorInfo } from "react";
+import React, { type ReactNode, type ErrorInfo } from "react";
 import { AlertTriangle, RefreshCw, Activity, ShieldCheck } from "lucide-react";
 
 interface Props {
@@ -11,7 +11,7 @@ interface State {
   timestamp: number;
 }
 
-export class SafeScreen extends Component<Props, State> {
+export class SafeScreen extends React.Component<Props, State> {
   state: State = {
     hasError: false,
     error: null,
@@ -96,7 +96,7 @@ export class SafeScreen extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    return (this as any).props.children;
   }
 }
 

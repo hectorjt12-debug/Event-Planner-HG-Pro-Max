@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import CatalogPanel from "./CatalogPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -11,6 +12,8 @@ import HGSpaceTopBar from "../../components/HGSpaceTopBar";
 import { nanoid } from "nanoid";
 import HGCreatorButton from "../../components/HGCreatorButton";
 import { useHGCreatorStore } from "../../store/HGCreatorStore";
+import { useRealtime } from "../../hooks/useRealtime";
+import Collaborators from "../../components/Collaborators";
 
 const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 
@@ -31,6 +34,9 @@ export default function MapEditor() {
   const { mode, setMode } = useInteractiveStore();
   const { generatedItems } = useHGCreatorStore();
   
+  // Realtime Connection
+  const { broadcastCursor } = useRealtime();
+
   const [aiText, setAiText] = useState("");
   const [is3D, setIs3D] = useState(false);
   const [showAreaCreator, setShowAreaCreator] = useState(false);
@@ -76,7 +82,6 @@ export default function MapEditor() {
   const zoomOut = () => setScale(s => clamp(s - 0.2, 0.3, 4));
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-      // Only drag if clicking background
       if((e.target as HTMLElement).closest('.hg-btn') || (e.target as HTMLElement).closest('.hg-input')) return;
 
       const targetId = (e.target as HTMLElement).id;
@@ -88,12 +93,22 @@ export default function MapEditor() {
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
+      // 1. Pan logic
       if (isDraggingCanvas) {
           const dx = e.clientX - lastMouseRef.current.x;
           const dy = e.clientY - lastMouseRef.current.y;
           setPan(p => ({ x: p.x + dx, y: p.y + dy }));
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
       }
+
+      // 2. Real-time Cursor Broadcast
+      // Need to convert screen coords to canvas coords
+      // Coords = (Client - CenterOffset - Pan) / Scale
+      // This is rough approximation for the demo cursor visual
+      const canvasX = (e.clientX - window.innerWidth / 2 - pan.x) / scale + 2500;
+      const canvasY = (e.clientY - window.innerHeight / 2 - pan.y) / scale + 2500;
+      
+      broadcastCursor(canvasX, canvasY);
   };
 
   const handleCanvasMouseUp = () => setIsDraggingCanvas(false);
@@ -128,6 +143,9 @@ export default function MapEditor() {
       
       {/* 1. TOP BAR (UI LAYER - Z-INDEX HIGH) */}
       <div className="relative z-[100] pointer-events-auto">
+        <div className="absolute top-2 right-4 z-[2000]">
+           <Collaborators />
+        </div>
         <HGSpaceTopBar 
             aiText={aiText} setAiText={setAiText}
             onMic={() => {}} onExecute={() => executeAI()}
@@ -168,7 +186,7 @@ export default function MapEditor() {
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale}) ${is3D ? 'perspective(2000px) rotateX(35deg) translateY(-100px)' : ''}`,
                     transformOrigin: "center center",
                     transformStyle: 'preserve-3d',
-                    pointerEvents: 'none' /* Important: Let clicks pass through wrapper to items */
+                    pointerEvents: 'none'
                 }}
              >
                 <NexusCanvas
